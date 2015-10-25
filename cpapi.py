@@ -119,6 +119,8 @@ class CPAPI:
                 print >> sys.stderr, "Failed to connect [%s] to '%s'" % (e.reason, url)
                 if (e.reason == "Unauthorized"):
                     authError = True
+                elif (e.reason == "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:590)"):
+                    authError = True
             elif hasattr(e, 'code'):
                 msg = self.getHttpStatus(e.code)
                 print >> sys.stderr, "Failed to fetch events [%s] from '%s'" % (msg, url)
