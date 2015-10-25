@@ -139,7 +139,7 @@ class ArchiveData:
                         print "updating token"
                         resp = self.api.authenticateClient()
                         (data, authError) = self.api.doGetRequest(urlPlus,self.api.authToken)
-                        print "retrying scan pagination url: " % urlPlus
+                        print "retrying scan pagination url: ", urlPlus
                         print "%d try" % countPagination
                         if (data != None):
                             print "Succefully connect to pagination url: ", urlPlus
