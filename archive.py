@@ -17,7 +17,7 @@ class CmdLine:
         self.starting = None
         self.ending = None
         self.reportModule = None
-        self.url_base = "https://portal.cloudpassage.com"
+        self.url_base = "https://api.cloudpassage.com"
         self.allowedReportTypes = ["sva", "csm", "fim", "sam"]
         # self.directory = os.chdir(os.path.dirname(os.getcwd()))
 
@@ -78,90 +78,89 @@ class ArchiveData:
         return url
 
     def scanDetail(self, queue, scan_id):
-        count = 0
+        count = 1
         url = "%s:%d/v1/scans/%s" %(self.api.base_url, self.api.port, scan_id)
         (data, authError) = self.api.doGetRequest(url,self.api.authToken)
 
-        while (authError != False) and (count < 4):
+        while (data == None) and (count < 4):
             print "update token"
             resp = self.api.authenticateClient()
             (data, authError) = self.api.doGetRequest(url,self.api.authToken)
             print "retrying scan: ", scan_id
             print "%d try" % count
+            if (data != None):
+                print "Succefully archive scan: %s after retrying" % scan_id
             count += 1
-        if (count == 4):
-            print "failed to archive scan (scan id: %s)" % scan_id
-        elif (authError == False):
-            print "Succefully archive scan: %s" % scan_id
 
-        if ('scan' in data):
-            scan_data = json.loads(data)
-            scan_time = dateutil.parser.parse(scan_data['scan']['created_at'])
-            filename = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
-                        "/" + scan_data['scan']['server_hostname'] + "/" + scan_data['scan']['module'] + "--" + scan_data['scan']['id'] + ".json")
-            if not os.path.exists(os.path.dirname(filename)):
-                os.makedirs(os.path.dirname(filename))
-            with open(filename, "w") as f:
-                json.dump(scan_data, f)
-            # print "Writing to", scan_data['scan']['id']
+        if (data != None):
+            if ('scan' in data):
+                scan_data = json.loads(data)
+                scan_time = dateutil.parser.parse(scan_data['scan']['created_at'])
+                filename = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+                            "/" + scan_data['scan']['server_hostname'] + "/" + scan_data['scan']['module'] + "--" + scan_data['scan']['id'] + ".json")
+                if not os.path.exists(os.path.dirname(filename)):
+                    os.makedirs(os.path.dirname(filename))
+                with open(filename, "w") as f:
+                    json.dump(scan_data, f)
         else:
-            print "no data %s" % scan_id
+            print "failed to archive scan (scan id: %s)" % scan_id
 
     def getScanData(self):
         print "here"
-        count = 0
+        count = 1
         url = self.listScan(cmd.reportModule)
         (data, authError) = self.api.doGetRequest(url, self.api.authToken)
 
-        while (count < 4 ) and (authError != False):
+        while (data == None) and (count < 4):
             print "getScanData:"
             print "updating token"
             resp = self.api.authenticateClient()
             (data, authError) = self.api.doGetRequest(url,self.api.authToken)
             print "retrying scan url: %s" % url
             print "%d try" % count
+            if (data != None):
+                print "Succefully connect to url: ", url
             count +=1
-        if (count == 4):
-            print "failed to connect to url: %s" % url
-        elif (authError == False):
-            print "Succefully connect to url: %s" % url
 
-        if ('scans' in data):
-            print 'in'
-            listScans = json.loads(data)
-            count = listScans['count']
-            pages = int(math.ceil(count/20.0))
-            for num in range(pages):
-                countPagination = 0
-                scan_ids = []
-                urlPlus = url
-                print "Scanning page ", str((num + 1))
-                urlPlus += "&per_page=20&page=" + str((num + 1))
-                (data, authError) = self.api.doGetRequest(urlPlus, self.api.authToken)
-                while (countPagination < 4) and (authError != False):
-                    print "getScanData - Pagination:"
-                    print "updating token"
-                    resp = self.api.authenticateClient()
-                    (data, authError) = self.api.doGetRequest(urlPlus,self.api.authToken)
-                    print "retrying scan pagination url: " % urlPlus
-                    print "%d try" % count
-                    count +=1
-                if (count == 4):
-                    print "failed to connect to pagination url: %s" % urlPlus
-                elif (authError == False):
-                    print "Succefully connect to pagination url: %s" % urlPlus
-                if ('scans' in data):
-                    data = json.loads(data)
-                    listScans = data['scans']
-                    for scan in listScans:
-                        scan_ids.append(scan['id'])
-                    queue = multiprocessing.Queue()
-                    res = [multiprocessing.Process(target=self.scanDetail, args=(queue, i)) for i in scan_ids]
-                    for p in res:
-                        p.start()
-                    for p in res:
-                        p.join()
-                print "Finish writing page", str((num+1))
+        if (data != None):
+           if ('scans' in data):
+                listScans = json.loads(data)
+                count = listScans['count']
+                pages = int(math.ceil(count/20.0))
+                for num in range(pages):
+                    countPagination = 1
+                    scan_ids = []
+                    urlPlus = url
+                    print "Scanning page ", str((num + 1))
+                    urlPlus += "&per_page=20&page=" + str((num + 1))
+                    (data, authError) = self.api.doGetRequest(urlPlus, self.api.authToken)
+                    while (data == None) and (countPagination < 4):
+                        print "getScanData - Pagination:"
+                        print "updating token"
+                        resp = self.api.authenticateClient()
+                        (data, authError) = self.api.doGetRequest(urlPlus,self.api.authToken)
+                        print "retrying scan pagination url: " % urlPlus
+                        print "%d try" % countPagination
+                        if (data != None):
+                            print "Succefully connect to pagination url: ", urlPlus
+                        countPagination +=1
+                    if (data != None):
+                        if ('scans' in data):
+                            data = json.loads(data)
+                            listScans = data['scans']
+                            for scan in listScans:
+                                scan_ids.append(scan['id'])
+                            queue = multiprocessing.Queue()
+                            res = [multiprocessing.Process(target=self.scanDetail, args=(queue, i)) for i in scan_ids]
+                            for p in res:
+                                p.start()
+                            for p in res:
+                                p.join()
+                            print "Finish writing page", str((num+1)) 
+                    else:
+                        print "Failed to connect to pagination url: ", urlPlus
+        else: 
+            print "Failed to connect to url: ", url
 
 
     def run (self, cmd):
