@@ -3,8 +3,6 @@ import sys
 import os
 import json
 import codecs
-import dateutil.parser
-import multiprocessing
 import time
 import math
 import cpapi
@@ -28,22 +26,8 @@ class CmdLine:
         for arg in argv[1:]:
             if (arg.startswith("--auth=")):
                 self.authFilename = arg.split("=")[1]
-            elif (arg.startswith("--starting")):
-                self.starting = arg.split("=")[1]
-                (ok, error) = cputils.verifyISO8601(self.starting)
-                if not ok:
-                    print >> sys.stderr, error
-                    allOk = False
-            elif (arg.startswith("--ending")):
-                self.ending = arg.split("=")[1]
-                (ok, error) = cputils.verifyISO8601(self.ending)
-                if not ok:
-                    print >> sys.stderr, error
-                    allOk = False
             elif (arg.startswith("--base=")):
                 self.base = arg.split("=")[1]
-            elif (arg.startswith("--reportModule")):
-                self.reportModule = arg.split("=")[1]
             elif (arg == "-h") or (arg == "-?"):
                 allOK = False
             else:
@@ -56,112 +40,113 @@ class CmdLine:
         print >> sys.stderr, "Where flag is one or more of the following options:"
         print >> sys.stderr, "--auth=<filename>\tSpecify name of file containing API credentials"
         print >> sys.stderr, "--base=<url>\t\tSpecify the URL of the Halo REST API"
-        print >> sys.stderr, "--starting=<datetime>\tSpecify a no-earlier-than date for issues (ISO8601)"
-        print >> sys.stderr, "--ending=<datetime>\tSpecify a no-later-than date for issues (ISO8601)"
-        print >> sys.stderr, "--reportType=<type>\tSpecify type of report, allowed = %s" % self.allowedReportTypes
+        
 
 class ArchiveData:
     def __init__(self):
         self.api = cpapi.CPAPI()
         self.directory = os.getcwd()
 
-    def listScan(self, reportModule):
-        print reportModule
-        if (cmd.starting == None) and (cmd.ending == None):
-            url = "%s:%d/v1/scans" % (self.api.base_url, self.api.port)
-        elif (cmd.starting != None):
-            url = "%s:%d/v1/scans?since=%s" % (self.api.base_url, self.api.port, cmd.starting)
-            if (cmd.ending != None):
-                url += "&until=%s" %(cmd.ending)
-        if (reportModule != None):
-            url += "&module=" + reportModule
-        return url
-
-    def scanDetail(self, queue, scan_id):
-        count = 1
-        url = "%s:%d/v1/scans/%s" %(self.api.base_url, self.api.port, scan_id)
-        (data, authError) = self.api.doGetRequest(url,self.api.authToken)
-
+    def listServer(self):
+        print "start"
+        count = 1 
+        server_List = []
+        url = "%s:%d/v1/servers" %(self.api.base_url, self.api.port)
+        (data, authError) = self.api.doGetRequest(url, self.api.authToken)
+        if data != None:
+            print "data is good"
         while (data == None) and (count < 4):
-            print "update token"
             resp = self.api.authenticateClient()
-            (data, authError) = self.api.doGetRequest(url,self.api.authToken)
-            print "retrying scan: ", scan_id
-            print "%d try" % count
+            (data, authError) = self.api.doGetRequest(url, self.api.authToken)
+            print "retry: %d time" % count 
             if (data != None):
-                print "Succefully archive scan: %s after retrying" % scan_id
+                print "Succefully get server list"
             count += 1
 
-        if (data != None):
-            if ('scan' in data):
-                scan_data = json.loads(data)
-                scan_time = dateutil.parser.parse(scan_data['scan']['created_at'])
-                filename = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
-                            "/" + scan_data['scan']['server_hostname'] + "/" + scan_data['scan']['module'] + "--" + scan_data['scan']['id'] + ".json")
-                if not os.path.exists(os.path.dirname(filename)):
-                    os.makedirs(os.path.dirname(filename))
-                with open(filename, "w") as f:
-                    json.dump(scan_data, f)
-        else:
-            print "failed to archive scan (scan id: %s)" % scan_id
-
-    def getScanData(self):
-        print "here"
-        count = 1
-        url = self.listScan(cmd.reportModule)
-        (data, authError) = self.api.doGetRequest(url, self.api.authToken)
-
-        while (data == None) and (count < 4):
-            print "getScanData:"
-            print "updating token"
-            resp = self.api.authenticateClient()
-            (data, authError) = self.api.doGetRequest(url,self.api.authToken)
-            print "retrying scan url: %s" % url
-            print "%d try" % count
-            if (data != None):
-                print "Succefully connect to url: ", url
-            count +=1
-
-        if (data != None):
-           if ('scans' in data):
-                listScans = json.loads(data)
-                count = listScans['count']
-                pages = int(math.ceil(count/20.0))
+        if(data != None):
+            print "here"
+            if ('servers' in data):
+                listServers = json.loads(data)
+                count = listServers['count']
+                pages = int(math.ceil(count/1000.0))
                 for num in range(pages):
-                    countPagination = 1
-                    scan_ids = []
-                    urlPlus = url
-                    print "Scanning page ", str((num + 1))
-                    urlPlus += "&per_page=20&page=" + str((num + 1))
-                    (data, authError) = self.api.doGetRequest(urlPlus, self.api.authToken)
-                    while (data == None) and (countPagination < 4):
-                        print "getScanData - Pagination:"
-                        print "updating token"
+                    countPagination = 1 
+                    urlPlus = url 
+                    print "Getting Server Id. Page ", str((num + 1))
+                    urlPlus += "?per_page=1000&page=" + str((num + 1))
+                    (dataPagination, authError) = self.api.doGetRequest(urlPlus, self.api.authToken)
+                    while (dataPagination == None) and (countPagination < 4):
+                        print "ListServer- Pagination:"
                         resp = self.api.authenticateClient()
-                        (data, authError) = self.api.doGetRequest(urlPlus,self.api.authToken)
-                        print "retrying scan pagination url: ", urlPlus
-                        print "%d try" % countPagination
-                        if (data != None):
-                            print "Succefully connect to pagination url: ", urlPlus
+                        (dataPagination, authError) = self.api.doGetRequest(urlPlus,self.api.authToken)
+                        print "retry: %d time" % countPagination
+                        if (dataPagination != None):
+                            print "Succefully get server list"
                         countPagination +=1
-                    if (data != None):
-                        if ('scans' in data):
-                            data = json.loads(data)
-                            listScans = data['scans']
-                            for scan in listScans:
-                                scan_ids.append(scan['id'])
-                            queue = multiprocessing.Queue()
-                            res = [multiprocessing.Process(target=self.scanDetail, args=(queue, i)) for i in scan_ids]
-                            for p in res:
-                                p.start()
-                            for p in res:
-                                p.join()
-                            print "Finish writing page", str((num+1)) 
+                    if (dataPagination != None):
+                        listServerPagination = json.loads(dataPagination)
+                        if ('servers' in listServerPagination):
+                            serverList = listServerPagination['servers']
+                            for server in serverList:
+                                server_List.append(server['id'])
                     else:
-                        print "Failed to connect to pagination url: ", urlPlus
-        else: 
-            print "Failed to connect to url: ", url
+                        print "Failed to connect to pagination url", urlPlus
+        else:
+            print "Failed to connect to pagination url", url
 
+        return server_List
+
+
+    def getServerissues(self, serverList):
+
+        for serverID in serverList: 
+            count = 1
+            url = "%s:%d/v1/servers/%s/issues" % (self.api.base_url, self.api.port, serverID)
+            print url
+            (data, authError) = self.api.doGetRequest(url, self.api.authToken)
+            while (data == None) and (count < 4):
+                resp = self.api.authenticateClient()
+                (data, authError) = self.api.doGetRequest(url, self.api.authToken)
+                print "retry: %d time" % count 
+                if (data != None):
+                    print "Succefully get server issues"
+                count += 1
+            if (data != None):
+                serverIssue = json.loads(data)
+                server_hostname = serverIssue['hostname']
+                scan_time = time.strftime("%Y-%m-%d", time.gmtime()).split("-")
+                if ('sca' in serverIssue):
+                    scaDetail = serverIssue['sca']
+                    if ('findings' in scaDetail):
+                        if (len(scaDetail['findings']) != 0):
+                            sca_data = scaDetail
+                            filename = (self.directory + "/output/" + scan_time[0] + "/" + scan_time[1] + "/" + scan_time[2] +
+                                         "/" + server_hostname + "/" + "csm" + "--" + serverID + ".json")
+                            if not os.path.exists(os.path.dirname(filename)):
+                                os.makedirs(os.path.dirname(filename))
+                            with open(filename, "w") as f:
+                                json.dump(sca_data, f)
+                if ('svm' in serverIssue):
+                    svmDetail = serverIssue['svm']
+                    if ('findings' in svmDetail):
+                        if (len(svmDetail['findings']) != 0):
+                            svm_data = svmDetail
+                            filename = (self.directory + "/output/" + scan_time[0] + "/" + scan_time[1] + "/" + scan_time[2] +
+                                         "/" + server_hostname + "/" + "sva" + "--" + serverID + ".json")
+                            if not os.path.exists(os.path.dirname(filename)):
+                                os.makedirs(os.path.dirname(filename))
+                            with open(filename, "w") as f:
+                                json.dump(svm_data, f)
+            else: 
+                print "failed to archive scan. url: ", url
+
+    def mp (serverList):
+        queue = multiprocessing.Queue()
+        res = [multiprocessing.Process(target=self.scanDetail, args=(queue, i)) for i in serverList]
+        for p in res:
+            p.start()
+        for p in res:
+            p.join()
 
     def run (self, cmd):
         (credentialList, errMsg) = cputils.processAuthFile(cmd.authFilename, cmd.progdir)
@@ -178,7 +163,10 @@ class ArchiveData:
         resp = self.api.authenticateClient()
         if (not resp):
             return False
-        self.getScanData()
+        serverList = self.listServer()
+        print "done. Got all the serverIDs"
+        print "--- %s servers ---" % (len(serverList))
+        self.getServerissues(serverList)
 
 
 
@@ -189,4 +177,4 @@ if __name__ == "__main__":
     else:
         rep = ArchiveData()
         rep.run(cmd)
-    print ("--- %s seconds ---" % (time.time() - start_time))
+        print ("--- %s seconds ---" % (time.time() - start_time))
