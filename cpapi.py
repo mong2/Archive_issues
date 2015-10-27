@@ -90,7 +90,8 @@ class CPAPI:
         delta = end_time - start_time
         with self.lock:
             self.api_count += 1
-            self.api_time += delta.total_seconds()
+            self.api_time += (delta.days*86400 + delta.seconds)
+	    #self.api_time += delta.total_seconds()
 
     def getTimeLog(self):
         tuple = None
