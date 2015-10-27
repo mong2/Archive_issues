@@ -60,7 +60,7 @@ class ArchiveData:
             (data, authError) = self.api.doGetRequest(url, self.api.authToken)
             print "retry: %d time" % count 
             if (data != None):
-                print "Succefully get server list"
+                print "Successfully get server list"
             count += 1
 
         if(data != None):
@@ -81,7 +81,7 @@ class ArchiveData:
                         (dataPagination, authError) = self.api.doGetRequest(urlPlus,self.api.authToken)
                         print "retry: %d time" % countPagination
                         if (dataPagination != None):
-                            print "Succefully get server list"
+                            print "Successfully get server list"
                         countPagination +=1
                     if (dataPagination != None):
                         listServerPagination = json.loads(dataPagination)
@@ -109,7 +109,7 @@ class ArchiveData:
                 (data, authError) = self.api.doGetRequest(url, self.api.authToken)
                 print "retry: %d time" % count 
                 if (data != None):
-                    print "Succefully get server issues"
+                    print "Successfully get server issues"
                 count += 1
             if (data != None):
                 serverIssue = json.loads(data)
