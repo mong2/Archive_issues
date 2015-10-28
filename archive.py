@@ -51,7 +51,8 @@ class ArchiveData:
         print "start"
         count = 1 
         server_List = []
-        url = "%s:%d/v1/servers" %(self.api.base_url, self.api.port)
+        Finish = False
+        url = "%s:%d/v1/servers?per_page=100" %(self.api.base_url, self.api.port)
         (data, authError) = self.api.doGetRequest(url, self.api.authToken)
         if data != None:
             print "data is good"
@@ -62,38 +63,30 @@ class ArchiveData:
             if (data != None):
                 print "Successfully get server list"
             count += 1
-
-        if(data != None):
-            print "here"
+        while(data != None) and (Finish == False):
+            print url
             if ('servers' in data):
                 listServers = json.loads(data)
-                count = listServers['count']
-                pages = int(math.ceil(count/1000.0))
-                for num in range(pages):
-                    countPagination = 1 
-                    urlPlus = url 
-                    print "Getting Server Id. Page ", str((num + 1))
-                    urlPlus += "?per_page=1000&page=" + str((num + 1))
-                    (dataPagination, authError) = self.api.doGetRequest(urlPlus, self.api.authToken)
-                    while (dataPagination == None) and (countPagination < 4):
-                        print "ListServer- Pagination:"
-                        resp = self.api.authenticateClient()
-                        (dataPagination, authError) = self.api.doGetRequest(urlPlus,self.api.authToken)
-                        print "retry: %d time" % countPagination
-                        if (dataPagination != None):
-                            print "Successfully get server list"
-                        countPagination +=1
-                    if (dataPagination != None):
-                        listServerPagination = json.loads(dataPagination)
-                        if ('servers' in listServerPagination):
-                            serverList = listServerPagination['servers']
-                            for server in serverList:
-                                server_List.append(server['id'])
+                serverList = listServers['servers']
+                for server in serverList:
+                    server_List.append(server['id'])
+                if (listServers['pagination']):
+                    if ('next' in listServers['pagination']):
+                        url = listServers['pagination']['next']
+                        countPagination = 1
+                        (data, authError) = self.api.doGetRequest(url, self.api.authToken)
+                        while (data == None) and (countPagination < 4):
+                            print "ListServer- Pagination:"
+                            resp = self.api.authenticateClient()
+                            (data, authError) = self.api.doGetRequest(url,self.api.authToken)
+                            print "retry: %d time" % countPagination
+                            if (data != None):
+                                print "Successfully get server list"
+                            countPagination +=1
+                        if (count == 4): 
+                            print "Failed to connect to ", url
                     else:
-                        print "Failed to connect to pagination url", urlPlus
-        else:
-            print "Failed to connect to pagination url", url
-
+                        Finish = True
         return server_List
 
 
@@ -164,7 +157,6 @@ class ArchiveData:
         if (not resp):
             return False
         serverList = self.listServer()
-        print "done. Got all the serverIDs"
         print "--- %s servers ---" % (len(serverList))
         self.getServerissues(serverList)
 
