@@ -70,7 +70,7 @@ class ArchiveData:
                 serverList = listServers['servers']
                 for server in serverList:
                     server_List.append(server['id'])
-                if (listServers['pagination']):
+                if ('pagination' in listServers):
                     if ('next' in listServers['pagination']):
                         url = listServers['pagination']['next']
                         countPagination = 1
@@ -87,6 +87,8 @@ class ArchiveData:
                             print "Failed to connect to ", url
                     else:
                         Finish = True
+                else: 
+                    Finish = True
         return server_List
 
 
