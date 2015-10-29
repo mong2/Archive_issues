@@ -4,6 +4,7 @@ import os
 import json
 import codecs
 import time
+import dateutil.parser
 import math
 import cpapi
 import cputils
@@ -16,8 +17,6 @@ class CmdLine:
         self.ending = None
         self.reportModule = None
         self.url_base = "https://api.cloudpassage.com"
-        self.allowedReportTypes = ["sva", "csm", "fim", "sam"]
-        # self.directory = os.chdir(os.path.dirname(os.getcwd()))
 
 
     def processArgs(self, argv):
@@ -40,7 +39,7 @@ class CmdLine:
         print >> sys.stderr, "Where flag is one or more of the following options:"
         print >> sys.stderr, "--auth=<filename>\tSpecify name of file containing API credentials"
         print >> sys.stderr, "--base=<url>\t\tSpecify the URL of the Halo REST API"
-        
+
 
 class ArchiveData:
     def __init__(self):
@@ -49,7 +48,7 @@ class ArchiveData:
 
     def listServer(self):
         print "start"
-        count = 1 
+        count = 1
         server_List = []
         Finish = False
         url = "%s:%d/v1/servers?per_page=100" %(self.api.base_url, self.api.port)
@@ -59,7 +58,7 @@ class ArchiveData:
         while (data == None) and (count < 4):
             resp = self.api.authenticateClient()
             (data, authError) = self.api.doGetRequest(url, self.api.authToken)
-            print "retry: %d time" % count 
+            print "retry: %d time" % count
             if (data != None):
                 print "Successfully get server list"
             count += 1
@@ -83,7 +82,7 @@ class ArchiveData:
                             if (data != None):
                                 print "Successfully get server list"
                             countPagination +=1
-                        if (count == 4): 
+                        if (count == 4):
                             print "Failed to connect to ", url
                     else:
                         Finish = True
@@ -92,48 +91,70 @@ class ArchiveData:
         return server_List
 
 
-    def getServerissues(self, serverList):
-
-        for serverID in serverList: 
+    def getServer_csm(self, serverList):
+        for serverID in serverList:
             count = 1
-            url = "%s:%d/v1/servers/%s/issues" % (self.api.base_url, self.api.port, serverID)
+            url = "%s:%d/v1/servers/%s/sca" % (self.api.base_url, self.api.port, serverID)
             print url
             (data, authError) = self.api.doGetRequest(url, self.api.authToken)
             while (data == None) and (count < 4):
                 resp = self.api.authenticateClient()
                 (data, authError) = self.api.doGetRequest(url, self.api.authToken)
-                print "retry: %d time" % count 
+                print "retry: %d time" % count
                 if (data != None):
                     print "Successfully get server issues"
                 count += 1
             if (data != None):
                 serverIssue = json.loads(data)
                 server_hostname = serverIssue['hostname']
-                scan_time = time.strftime("%Y-%m-%d", time.gmtime()).split("-")
-                if ('sca' in serverIssue):
-                    scaDetail = serverIssue['sca']
-                    if ('findings' in scaDetail):
-                        if (len(scaDetail['findings']) != 0):
-                            sca_data = scaDetail
-                            filename = (self.directory + "/output/" + scan_time[0] + "/" + scan_time[1] + "/" + scan_time[2] +
-                                         "/" + server_hostname + "/" + "csm" + "--" + serverID + ".json")
+                if ('scan' in serverIssue):
+                    scanDetail = serverIssue['scan']
+                    scan_time = dateutil.parser.parse(scanDetail['created_at'])
+                    scan_id = scanDetail['id']
+                    if ('findings' in scanDetail):
+                        if (len(scanDetail['findings']) != 0):
+                            sca_data = serverIssue
+                            filename = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+                                         "/" + server_hostname + "/" + "csm" + "--" + scan_id + ".json")
                             if not os.path.exists(os.path.dirname(filename)):
                                 os.makedirs(os.path.dirname(filename))
                             with open(filename, "w") as f:
                                 json.dump(sca_data, f)
-                if ('svm' in serverIssue):
-                    svmDetail = serverIssue['svm']
-                    if ('findings' in svmDetail):
-                        if (len(svmDetail['findings']) != 0):
-                            svm_data = svmDetail
-                            filename = (self.directory + "/output/" + scan_time[0] + "/" + scan_time[1] + "/" + scan_time[2] +
-                                         "/" + server_hostname + "/" + "sva" + "--" + serverID + ".json")
+            else:
+                print "failed to archive scan. url: ", url
+
+    def getServer_sva(self, serverList):
+        for serverID in serverList:
+            count = 1
+            url = "%s:%d/v1/servers/%s/svm" % (self.api.base_url, self.api.port, serverID)
+            print url
+            (data, authError) = self.api.doGetRequest(url, self.api.authToken)
+            while (data == None) and (count < 4):
+                resp = self.api.authenticateClient()
+                (data, authError) = self.api.doGetRequest(url, self.api.authToken)
+                print "retry: %d time" % count
+                if (data != None):
+                    print "Successfully get server issues"
+                count += 1
+            if (data != None):
+                serverIssue = json.loads(data)
+                server_hostname = serverIssue['hostname']
+                if ('scan' in serverIssue):
+                    scanDetail = serverIssue['scan']
+                    scan_time = dateutil.parser.parse(scanDetail['created_at'])
+                    scan_id = scanDetail['id']
+                    if ('findings' in scanDetail):
+                        if (len(scanDetail['findings']) != 0):
+                            svm_data = serverIssue
+                            filename = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+                                         "/" + server_hostname + "/" + "sva" + "--" + scan_id + ".json")
                             if not os.path.exists(os.path.dirname(filename)):
                                 os.makedirs(os.path.dirname(filename))
                             with open(filename, "w") as f:
                                 json.dump(svm_data, f)
-            else: 
-                print "failed to archive scan. url: ", url
+                else:
+                    print "failed to archive scan. url: ", url
+
 
     def mp (serverList):
         queue = multiprocessing.Queue()
@@ -160,7 +181,8 @@ class ArchiveData:
             return False
         serverList = self.listServer()
         print "--- %s servers ---" % (len(serverList))
-        self.getServerissues(serverList)
+        self.getServer_csm(serverList)
+        self.getServer_sva(serverList)
 
 
 
