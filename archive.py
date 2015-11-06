@@ -9,6 +9,8 @@ import math
 import cpapi
 import cputils
 
+log_file = open('log_monitoring', 'w')
+
 start_time = time.time()
 class CmdLine:
     def __init__(self):
@@ -47,20 +49,20 @@ class ArchiveData:
         self.directory = os.getcwd()
 
     def listServer(self):
-        print "start"
+        log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: start archiving issues. \n")
         count = 1
         server_List = []
         Finish = False
         url = "%s:%d/v1/servers?per_page=100" %(self.api.base_url, self.api.port)
         (data, authError) = self.api.doGetRequest(url, self.api.authToken)
         if data != None:
-            print "data is good"
+            log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: First API was successful! Data is good. \n")
         while (data == None) and (count < 4):
             resp = self.api.authenticateClient()
             (data, authError) = self.api.doGetRequest(url, self.api.authToken)
-            print "retry: %d time" % count
+            log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: retry: %d time" % count + "\n") 
             if (data != None):
-                print "Successfully get server list"
+                log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: Successfully retreive server list. \n")
             count += 1
         while(data != None) and (Finish == False):
             print url
@@ -68,23 +70,22 @@ class ArchiveData:
                 listServers = json.loads(data)
                 serverList = listServers['servers']
                 for server in serverList:
-                    server_List.append(server['id'])
+                    server_List.append((server['id'], server))
                 if ('pagination' in listServers):
                     if ('next' in listServers['pagination']):
                         url = listServers['pagination']['next']
                         countPagination = 1
                         (data, authError) = self.api.doGetRequest(url, self.api.authToken)
                         while (data == None) and (countPagination < 4):
-                            print "ListServer- Pagination:"
+                            log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: ListServer - Pagination. \n")
                             resp = self.api.authenticateClient()
                             (data, authError) = self.api.doGetRequest(url,self.api.authToken)
-                            print "retry: %d time" % countPagination
+                            log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: retry: %d time" % countPagination + "\n")
                             if (data != None):
-                                print "Successfully get server list"
+                                log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: Successfully retreive server list \n")
                             countPagination +=1
                         if (count == 4):
-                            print "Failed to connect to ", url
-                    else:
+                            log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: Failed to connect to", url + "\n")
                         Finish = True
                 else: 
                     Finish = True
@@ -92,17 +93,16 @@ class ArchiveData:
 
 
     def getServer_csm(self, serverList):
-        for serverID in serverList:
+        for serverID, serverDetail in serverList:
             count = 1
             url = "%s:%d/v1/servers/%s/sca" % (self.api.base_url, self.api.port, serverID)
-            print url
             (data, authError) = self.api.doGetRequest(url, self.api.authToken)
             while (data == None) and (count < 4):
                 resp = self.api.authenticateClient()
                 (data, authError) = self.api.doGetRequest(url, self.api.authToken)
-                print "retry: %d time" % count
+                log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: retry: %d time" % count + "\n")
                 if (data != None):
-                    print "Successfully get server issues"
+                    log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: Successfully retreive server issue \n")    
                 count += 1
             if (data != None):
                 serverIssue = json.loads(data)
@@ -121,20 +121,28 @@ class ArchiveData:
                             with open(filename, "w") as f:
                                 json.dump(sca_data, f)
             else:
-                print "failed to archive scan. url: ", url
+                log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: Failed to connect to", url + "\n")
+
+            if (serverDetail != None):               
+                fileServer = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+                             "/" + server_hostname + "/" + "serverInfo" + ".json")
+                if not os.path.exists(os.path.dirname(fileServer)):
+                    os.makedirs(os.path.dirname(fileServer))
+                with open(fileServer, "w") as f:
+                    json.dump(serverDetail, f)
+           
 
     def getServer_sva(self, serverList):
-        for serverID in serverList:
+        for serverID, serverDetail in serverList:
             count = 1
             url = "%s:%d/v1/servers/%s/svm" % (self.api.base_url, self.api.port, serverID)
-            print url
             (data, authError) = self.api.doGetRequest(url, self.api.authToken)
             while (data == None) and (count < 4):
                 resp = self.api.authenticateClient()
                 (data, authError) = self.api.doGetRequest(url, self.api.authToken)
-                print "retry: %d time" % count
+                log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: retry: %d time" % count + "\n")
                 if (data != None):
-                    print "Successfully get server issues"
+                    log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: Successfully retreive server issue. \n")    
                 count += 1
             if (data != None):
                 serverIssue = json.loads(data)
@@ -152,9 +160,22 @@ class ArchiveData:
                                 os.makedirs(os.path.dirname(filename))
                             with open(filename, "w") as f:
                                 json.dump(svm_data, f)
-                else:
-                    print "failed to archive scan. url: ", url
+                            fileServer = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+                                         "/" + server_hostname + "/" + "serverInfo" + ".json")
+                            if not os.path.exists(os.path.dirname(fileServer)):
+                                os.makedirs(os.path.dirname(fileServer))
+                            with open(fileServer, "w") as f:
+                                json.dump(serverDetail, f)
+            else:
+                log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: Failed to connect to", url + "\n")
 
+            if (serverDetail != None):               
+                fileServer = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+                             "/" + server_hostname + "/" + "serverInfo" + ".json")
+                if not os.path.exists(os.path.dirname(fileServer)):
+                    os.makedirs(os.path.dirname(fileServer))
+                with open(fileServer, "w") as f:
+                    json.dump(serverDetail, f)
 
     def mp (serverList):
         queue = multiprocessing.Queue()
@@ -181,6 +202,7 @@ class ArchiveData:
             return False
         serverList = self.listServer()
         print "--- %s servers ---" % (len(serverList))
+        log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: --- %s servers ---" % (len(serverList)) + "\n")   
         self.getServer_csm(serverList)
         self.getServer_sva(serverList)
 
@@ -194,3 +216,4 @@ if __name__ == "__main__":
         rep = ArchiveData()
         rep.run(cmd)
         print ("--- %s seconds ---" % (time.time() - start_time))
+        log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: --- %s seconds ---" % (time.time() - start_time) + "\n")
