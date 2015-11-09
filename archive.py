@@ -53,7 +53,7 @@ class ArchiveData:
         count = 1
         server_List = []
         Finish = False
-        url = "%s:%d/v1/servers?per_page=100" %(self.api.base_url, self.api.port)
+        url = "%s:%d/v1/servers?per_page=100&page=1" %(self.api.base_url, self.api.port)
         (data, authError) = self.api.doGetRequest(url, self.api.authToken)
         if data != None:
             log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: First API was successful! Data is good. \n")
@@ -86,9 +86,8 @@ class ArchiveData:
                             countPagination +=1
                         if (count == 4):
                             log_file.write("[" + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "]: Failed to connect to", url + "\n")
+                    else: 
                         Finish = True
-                else: 
-                    Finish = True
         return server_List
 
 
