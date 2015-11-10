@@ -1,3 +1,19 @@
-[2015-11-09 16:26:17]: start archiving issues. 
-[2015-11-09 16:26:23]: First API was successful! Data is good. 
-[2015-11-09 16:28:37]: --- 2070 servers ---
+[2015-11-09 23:12:40]: start archiving issues. 
+[2015-11-09 23:12:45]: retry: 1 time
+[2015-11-09 23:12:45]: Successfully retreive server list. 
+[2015-11-09 23:12:57]: ListServer - Pagination. 
+[2015-11-09 23:13:04]: retry: 1 time
+[2015-11-09 23:13:04]: Successfully retreive server list 
+[2015-11-09 23:13:14]: ListServer - Pagination. 
+[2015-11-09 23:13:21]: retry: 1 time
+[2015-11-09 23:13:21]: Successfully retreive server list 
+[2015-11-09 23:13:27]: ListServer - Pagination. 
+[2015-11-09 23:13:28]: retry: 1 time
+[2015-11-09 23:13:28]: ListServer - Pagination. 
+[2015-11-09 23:13:29]: retry: 2 time
+[2015-11-09 23:13:29]: ListServer - Pagination. 
+[2015-11-09 23:13:36]: retry: 3 time
+[2015-11-09 23:13:36]: Successfully retreive server list 
+[2015-11-09 23:15:01]: --- 2086 servers ---
+[2015-11-09 23:28:33]: retry: 1 time
+[2015-11-09 23:28:33]: Successfully retreive server issue 

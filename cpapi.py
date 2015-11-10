@@ -110,25 +110,30 @@ class CPAPI:
             (mimetype, encoding) = contentType.split("charset=")
             # print >> sys.stderr, "Type=%s  Encoding=%s" % (mimetype, encoding)
             translatedData = data.decode(encoding,'ignore').encode('utf-8')
-            results = (translatedData, False)
+            results = (translatedData, False, None)
             end_time = datetime.datetime.now()
             self.logTime(start_time, end_time)
             return results
         except IOError, e:
+            error_str = ""
             authError = False
             if hasattr(e, 'reason'):
+                error_str += "Failed to connect [%s] to '%s'" % (e.reason, url)
                 print >> sys.stderr, "Failed to connect [%s] to '%s'" % (e.reason, url)
                 if (e.reason == "Unauthorized"):
                     authError = True
             elif hasattr(e, 'code'):
                 msg = self.getHttpStatus(e.code)
+                error_str += "Failed to fetch events [%s] from '%s'" % (msg, url)
                 print >> sys.stderr, "Failed to fetch events [%s] from '%s'" % (msg, url)
                 if (e.code == 401) or (e.code == 403):
                     authError = True
+                error_str += "\n Error response: %s" % e.read()
                 print >> sys.stderr, "Error response: %s" % e.read()
             else:
+                error_str += sys.stderr, "Unknown error fetching '%s'" % url
                 print >> sys.stderr, "Unknown error fetching '%s'" % url
-            return (None, authError)
+            return (None, authError, error_str)
 
     def doPutRequest(self, url, token, putData):
         opener = urllib2.build_opener(urllib2.HTTPHandler)
