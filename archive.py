@@ -130,15 +130,18 @@ class ArchiveData:
                                 logger.info("Successfully archive csm scan from: %s" % url)
             else:
                 logger.warn("Failed to connect to %s" % url)
-
+            
             if (serverDetail != None):               
                 fileServer = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
-                             "/" + server_hostname + "/" + "serverInfo" + ".json")
+                             "/" + server_hostname + "/" + "serverInfo -- " + serverID + ".json")
                 if not os.path.exists(os.path.dirname(fileServer)):
                     os.makedirs(os.path.dirname(fileServer))
                 with open(fileServer, "w") as f:
                     json.dump(serverDetail, f)
                     logger.info("Successfully download the server information: %s" % url)
+            else: 
+                logger.warn("Failed to download server information: %s" % url)
+
 
     def getServer_sva(self, serverList):
         for serverID, serverDetail in serverList:
