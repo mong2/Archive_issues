@@ -95,6 +95,8 @@ class ArchiveData:
                             logger.warn("Failed to connect to", url)
                     else: 
                         Finish = True
+                else:
+                    Finish = True
         return server_List
 
 
