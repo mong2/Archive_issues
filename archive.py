@@ -10,7 +10,6 @@ import cpapi
 import cputils
 import logbook
 
-# log_file = open('log_monitoring', 'w')
 
 logger = logbook.Logger('archive')
 log = logbook.FileHandler('monitoring.log')
@@ -24,6 +23,7 @@ class CmdLine:
         self.ending = None
         self.reportModule = None
         self.url_base = "https://api.cloudpassage.com"
+        self.output_path = os.getcwd()
 
 
     def processArgs(self, argv):
@@ -34,6 +34,8 @@ class CmdLine:
                 self.authFilename = arg.split("=")[1]
             elif (arg.startswith("--base=")):
                 self.base = arg.split("=")[1]
+            elif (arg.startswith("--output_path=")):
+                self.output_path = os.path.abspath(arg.split("=")[1])
             elif (arg == "-h") or (arg == "-?"):
                 allOK = False
             else:
@@ -46,12 +48,14 @@ class CmdLine:
         print >> sys.stderr, "Where flag is one or more of the following options:"
         print >> sys.stderr, "--auth=<filename>\tSpecify name of file containing API credentials"
         print >> sys.stderr, "--base=<url>\t\tSpecify the URL of the Halo REST API"
+        print >> sys.stderr, "--output_path=<url>\t\tSpecify the file directory for archived scans"
+
 
 
 class ArchiveData:
     def __init__(self):
         self.api = cpapi.CPAPI()
-        self.directory = os.getcwd()
+        print "Saving output files to %s" % cmd.output_path
 
     def listServer(self):
         print "Start archiving issues."
@@ -59,7 +63,7 @@ class ArchiveData:
         count = 1
         server_List = []
         Finish = False
-        url = "%s:%d/v1/servers?per_page=100&page=1" %(self.api.base_url, self.api.port)
+        url = "%s:%d/v1/servers?per_page=5&page=1" %(self.api.base_url, self.api.port)
         (data, authError,error_msg) = self.api.doGetRequest(url, self.api.authToken)
         if data != None:
             logger.info("First API was successful! Data is good.")
@@ -68,7 +72,7 @@ class ArchiveData:
             resp = self.api.authenticateClient()
             (data, authError, error_msg) = self.api.doGetRequest(url, self.api.authToken)
             logger.warn(error_msg)
-            logger.warn("retry: %d time" % count + "on %d" % url) 
+            logger.warn("retry: %d time" % count + "on %d" % url)
             if (data != None):
                 logger.info("Successfully retreive server list from %d" % url)
             count += 1
@@ -93,8 +97,10 @@ class ArchiveData:
                             countPagination +=1
                         if (count == 4):
                             logger.warn("Failed to connect to", url)
-                    else: 
+                    else:
                         Finish = True
+                else:
+                    Finish = True
         return server_List
 
 
@@ -109,7 +115,7 @@ class ArchiveData:
                 logger.warn("retry: %d time" % count + "on %s" % url)
                 (data, authError, error_msg) = self.api.doGetRequest(url, self.api.authToken)
                 if (data != None):
-                    logger.info("Successfully retreive server issue from %s" % url)    
+                    logger.info("Successfully retreive server issue from %s" % url)
                 count += 1
             if (data != None):
                 serverIssue = json.loads(data)
@@ -121,7 +127,7 @@ class ArchiveData:
                     if ('findings' in scanDetail):
                         if (len(scanDetail['findings']) != 0):
                             sca_data = serverIssue
-                            filename = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+                            filename = (cmd.output_path + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
                                          "/" + server_hostname + "/" + "csm" + "--" + scan_id + ".json")
                             if not os.path.exists(os.path.dirname(filename)):
                                 os.makedirs(os.path.dirname(filename))
@@ -130,16 +136,16 @@ class ArchiveData:
                                 logger.info("Successfully archive csm scan from: %s" % url)
             else:
                 logger.warn("Failed to connect to %s" % url)
-            
-            if (serverDetail != None):               
-                fileServer = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+
+            if (serverDetail != None):
+                fileServer = (cmd.output_path + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
                              "/" + server_hostname + "/" + "serverInfo -- " + serverID + ".json")
                 if not os.path.exists(os.path.dirname(fileServer)):
                     os.makedirs(os.path.dirname(fileServer))
                 with open(fileServer, "w") as f:
                     json.dump(serverDetail, f)
                     logger.info("Successfully download the server information: %s" % url)
-            else: 
+            else:
                 logger.warn("Failed to download server information: %s" % url)
 
 
@@ -154,7 +160,7 @@ class ArchiveData:
                 logger.warn("retry: %d time" % count + "on %s" % url)
                 (data, authError, error_msg) = self.api.doGetRequest(url, self.api.authToken)
                 if (data != None):
-                    logger.info("Successfully retreive server issue from %s" % url)    
+                    logger.info("Successfully retreive server issue from %s" % url)
                 count += 1
             if (data != None):
                 serverIssue = json.loads(data)
@@ -166,13 +172,13 @@ class ArchiveData:
                     if ('findings' in scanDetail):
                         if (len(scanDetail['findings']) != 0):
                             svm_data = serverIssue
-                            filename = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+                            filename = (cmd.output_path + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
                                          "/" + server_hostname + "/" + "sva" + "--" + scan_id + ".json")
                             if not os.path.exists(os.path.dirname(filename)):
                                 os.makedirs(os.path.dirname(filename))
                             with open(filename, "w") as f:
                                 json.dump(svm_data, f)
-                            fileServer = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+                            fileServer = (cmd.output_path + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
                                          "/" + server_hostname + "/" + "serverInfo" + ".json")
                             if not os.path.exists(os.path.dirname(fileServer)):
                                 os.makedirs(os.path.dirname(fileServer))
@@ -183,8 +189,8 @@ class ArchiveData:
             else:
                 logger.warn("Failed to connect to %s" %url)
 
-            if (serverDetail != None):               
-                fileServer = (self.directory + "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
+            if (serverDetail != None):
+                fileServer = (cmd.output_path+ "/output/" + str(scan_time.year) + "/" + str(scan_time.month) + "/" + str(scan_time.day) +
                              "/" + server_hostname + "/" + "serverInfo" + ".json")
                 if not os.path.exists(os.path.dirname(fileServer)):
                     os.makedirs(os.path.dirname(fileServer))
@@ -217,7 +223,7 @@ class ArchiveData:
             return False
         serverList = self.listServer()
         print "--- %s servers ---" % (len(serverList))
-        logger.info("--- %s servers ---" % (len(serverList)))  
+        logger.info("--- %s servers ---" % (len(serverList)))
         print "Start archiving configuration scan result"
         self.getServer_csm(serverList)
         print "Start archiving software vulnerablility scan result"
